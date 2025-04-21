@@ -141,11 +141,9 @@ impl TaskManager {
 /// functional implements
 impl TaskManager {
     fn record_syscall(&self, syscall_id: usize) {
-        let inner = self.inner.exclusive_access();
+        let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
-        let mut cur_task = inner.tasks[current];
-        cur_task.syscall_times[syscall_id] += 1;
-        debug!("task {}, syscall {} increased! now is {}", current, syscall_id, cur_task.syscall_times[syscall_id]);
+        inner.tasks[current].record_syscall(syscall_id);
     }
 
     fn task_info(&self, id: usize) -> usize {

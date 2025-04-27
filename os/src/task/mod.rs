@@ -155,6 +155,28 @@ impl TaskManager {
     }
 }
 
+impl TaskManager {
+    fn read_byte(&self, addr: usize) -> usize {
+        let inner = self.inner.exclusive_access();
+        let cur = inner.current_task;
+        inner.tasks[cur].read_byte(addr)
+    }
+    fn write_byte(&self, addr: usize, data: usize) -> usize {
+        let inner = self.inner.exclusive_access();
+        inner.tasks[inner.current_task].write_byte(addr, data)
+    }
+    fn record_syscall(&self, id: usize) {
+        let mut inner = self.inner.exclusive_access();
+        let cur = inner.current_task;
+        inner.tasks[cur].record_syscall(id);
+    }
+    fn task_info(&self, id: usize) -> usize {
+        let inner = self.inner.exclusive_access();
+        let cur = inner.current_task;
+        inner.tasks[cur].task_info(id)
+    }
+}
+
 /// Run the first task in task list.
 pub fn run_first_task() {
     TASK_MANAGER.run_first_task();
@@ -201,4 +223,24 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
 /// Change the current 'Running' task's program break
 pub fn change_program_brk(size: i32) -> Option<usize> {
     TASK_MANAGER.change_current_program_brk(size)
+}
+
+/// read usize from user space
+pub fn read_byte(addr: usize) -> usize {
+    TASK_MANAGER.read_byte(addr)
+}
+
+/// write usize to user space
+pub fn write_byte(addr: usize, data: usize) -> usize {
+    TASK_MANAGER.write_byte(addr, data)
+}
+
+/// record corresponding syscall id
+pub fn record_syscall(id: usize) {
+    TASK_MANAGER.record_syscall(id);
+}
+
+/// get syscall times of given id
+pub fn task_info(id: usize) -> usize {
+    TASK_MANAGER.task_info(id)
 }

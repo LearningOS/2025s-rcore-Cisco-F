@@ -1,10 +1,13 @@
 //! Types related to task management
+use core::panic;
+
 use super::TaskContext;
-use crate::config::TRAP_CONTEXT_BASE;
+use crate::config::{MAX_SYSCALL_NUM, PAGE_SIZE, TRAP_CONTEXT_BASE};
 use crate::mm::{
-    kernel_stack_position, MapPermission, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE,
+    kernel_stack_position, translated_byte_buffer, MapPermission, MemorySet, PageTable, PhysPageNum, VirtAddr, KERNEL_SPACE
 };
 use crate::trap::{trap_handler, TrapContext};
+use crate::utils::from_translated_byte_buffer;
 
 /// The task control block (TCB) of a task.
 pub struct TaskControlBlock {
@@ -28,6 +31,9 @@ pub struct TaskControlBlock {
 
     /// Program break
     pub program_brk: usize,
+
+    /// syscall id record
+    pub syscall_times: [usize; MAX_SYSCALL_NUM],
 }
 
 impl TaskControlBlock {
@@ -63,6 +69,7 @@ impl TaskControlBlock {
             base_size: user_sp,
             heap_bottom: user_sp,
             program_brk: user_sp,
+            syscall_times: [0; MAX_SYSCALL_NUM],
         };
         // prepare TrapContext in user space
         let trap_cx = task_control_block.get_trap_cx();
@@ -95,6 +102,61 @@ impl TaskControlBlock {
         } else {
             None
         }
+    }
+}
+
+impl TaskControlBlock {
+    /// read usize from user space
+    pub fn read_byte(&self, addr: usize) -> usize {
+        debug!("reading usize");
+        let token = self.get_user_token();
+        let page_table = PageTable::from_token(token);
+        let va = VirtAddr::from(addr);
+        let vpn = va.floor();
+        let pte = match page_table.translate(vpn) {
+            Some(pte) => pte,
+            None => panic!("page of given addr doesn't exist!"),
+        };
+        debug!("get pte!");
+
+        if pte.is_valid() && pte.readable() {
+            let buf = translated_byte_buffer(token, va.0 as *const u8, core::mem::size_of::<usize>());
+            let val = from_translated_byte_buffer(buf);
+            debug!("read: {}", val);
+            return val;
+        }
+
+        panic!("read byte failed");
+    }
+    /// write usize to user space
+    pub fn write_byte(&self, addr: usize, data: usize) -> usize {
+        let token = self.get_user_token();
+        let page_table = PageTable::from_token(token);
+        let va = VirtAddr::from(addr);
+        let vpn = va.floor();
+        let pte = match page_table.translate(vpn) {
+            Some(pte) => pte,
+            None => panic!("page of given addr doesn't exist!"),
+        };
+
+        if pte.is_valid() && pte.writable() {
+            let ppn = pte.ppn();
+            let bytes_array = ppn.get_bytes_array();
+            let offset = va.0 - vpn.0 * PAGE_SIZE;
+            let data = usize::to_le_bytes(data);
+            bytes_array[offset..offset + data.len()].copy_from_slice(&data);
+
+        }
+
+        0
+    }
+    /// record corresponding syscall id
+    pub fn record_syscall(&mut self, id: usize) {
+        self.syscall_times[id] += 1;
+    }
+    /// get syscall times of given id
+    pub fn task_info(&self, id: usize) -> usize {
+        self.syscall_times[id]
     }
 }
 

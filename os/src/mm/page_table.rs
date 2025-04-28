@@ -70,6 +70,15 @@ impl PageTableEntry {
     pub fn executable(&self) -> bool {
         (self.flags() & PTEFlags::X) != PTEFlags::empty()
     }
+    /// The page pointered by page table entry is accessible from user mode?
+    pub fn accessible(&self) -> bool {
+        let flags = self.flags();
+        if !flags.contains(PTEFlags::U) {
+            debug!("cannot be accessed from user mode!");
+            return false;
+        }
+        true
+    }
 }
 
 /// page table structure

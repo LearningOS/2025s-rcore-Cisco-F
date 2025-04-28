@@ -156,24 +156,22 @@ impl TaskManager {
 }
 
 impl TaskManager {
-    fn read_byte(&self, addr: usize) -> usize {
+    fn read_usize(&self, addr: usize) -> isize {
         let inner = self.inner.exclusive_access();
-        let cur = inner.current_task;
-        inner.tasks[cur].read_byte(addr)
+        inner.tasks[inner.current_task].read_usize(addr)
     }
-    fn write_byte(&self, addr: usize, data: usize) -> usize {
+    fn write_usize(&self, addr: usize, data: usize) -> isize {
         let inner = self.inner.exclusive_access();
-        inner.tasks[inner.current_task].write_byte(addr, data)
+        inner.tasks[inner.current_task].write_usize(addr, data)
     }
     fn record_syscall(&self, id: usize) {
         let mut inner = self.inner.exclusive_access();
         let cur = inner.current_task;
-        inner.tasks[cur].record_syscall(id);
+        inner.tasks[cur].record_syscall(id)
     }
     fn task_info(&self, id: usize) -> usize {
         let inner = self.inner.exclusive_access();
-        let cur = inner.current_task;
-        inner.tasks[cur].task_info(id)
+        inner.tasks[inner.current_task].task_info(id)
     }
 }
 
@@ -226,13 +224,13 @@ pub fn change_program_brk(size: i32) -> Option<usize> {
 }
 
 /// read usize from user space
-pub fn read_byte(addr: usize) -> usize {
-    TASK_MANAGER.read_byte(addr)
+pub fn read_usize(addr: usize) -> isize {
+    TASK_MANAGER.read_usize(addr)
 }
 
 /// write usize to user space
-pub fn write_byte(addr: usize, data: usize) -> usize {
-    TASK_MANAGER.write_byte(addr, data)
+pub fn write_usize(addr: usize, data: usize) -> isize {
+    TASK_MANAGER.write_usize(addr, data)
 }
 
 /// record corresponding syscall id

@@ -1,7 +1,7 @@
 //! Process management syscalls
 use core::slice;
 
-use crate::{config::CLOCK_FREQ, mm::translated_byte_buffer, task::{change_program_brk, current_user_token, exit_current_and_run_next, read_byte, suspend_current_and_run_next, task_info, write_byte}, timer::get_time};
+use crate::{config::CLOCK_FREQ, mm::translated_byte_buffer, task::{change_program_brk, current_user_token, exit_current_and_run_next, read_usize, suspend_current_and_run_next, task_info, write_usize}, timer::get_time};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -49,8 +49,8 @@ pub fn sys_get_time(ts: *mut TimeVal, _tz: usize) -> isize {
 pub fn sys_trace(trace_request: usize, id: usize, data: usize) -> isize {
     trace!("kernel: sys_trace");
     let result = match trace_request {
-        0 => read_byte(id) as isize,
-        1 => write_byte(id, data) as isize,
+        0 => read_usize(id),
+        1 => write_usize(id, data),
         2 => task_info(id) as isize,
         _ => -1,
     };

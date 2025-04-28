@@ -1,6 +1,4 @@
 //! Types related to task management
-use core::panic;
-
 use super::TaskContext;
 use crate::config::{MAX_SYSCALL_NUM, PAGE_SIZE, TRAP_CONTEXT_BASE};
 use crate::mm::{
@@ -107,7 +105,7 @@ impl TaskControlBlock {
 
 impl TaskControlBlock {
     /// read usize from user space
-    pub fn read_byte(&self, addr: usize) -> usize {
+    pub fn read_usize(&self, addr: usize) -> isize {
         debug!("reading usize");
         let token = self.get_user_token();
         let page_table = PageTable::from_token(token);
@@ -115,40 +113,47 @@ impl TaskControlBlock {
         let vpn = va.floor();
         let pte = match page_table.translate(vpn) {
             Some(pte) => pte,
-            None => panic!("page of given addr doesn't exist!"),
+            None => {
+                debug!("page of given addr doesn't exist!");
+                return -1;
+            }
         };
-        debug!("get pte!");
 
-        if pte.is_valid() && pte.readable() {
+        if pte.is_valid() && pte.readable() && pte.accessible() {
             let buf = translated_byte_buffer(token, va.0 as *const u8, core::mem::size_of::<usize>());
             let val = from_translated_byte_buffer(buf);
             debug!("read: {}", val);
-            return val;
+            return val as isize;
         }
 
-        panic!("read byte failed");
+        debug!("read usize failed");
+        return -1;
     }
     /// write usize to user space
-    pub fn write_byte(&self, addr: usize, data: usize) -> usize {
+    pub fn write_usize(&self, addr: usize, data: usize) -> isize {
         let token = self.get_user_token();
         let page_table = PageTable::from_token(token);
         let va = VirtAddr::from(addr);
         let vpn = va.floor();
         let pte = match page_table.translate(vpn) {
             Some(pte) => pte,
-            None => panic!("page of given addr doesn't exist!"),
+            None => {
+                debug!("page of given addr doesn't exist!");
+                return -1;
+            }
         };
 
-        if pte.is_valid() && pte.writable() {
+        if pte.is_valid() && pte.writable() && pte.accessible() {
             let ppn = pte.ppn();
             let bytes_array = ppn.get_bytes_array();
             let offset = va.0 - vpn.0 * PAGE_SIZE;
             let data = usize::to_le_bytes(data);
             bytes_array[offset..offset + data.len()].copy_from_slice(&data);
-
+            return 0;
+        } else {
+            debug!("write usize failed!");
+            return -1;
         }
-
-        0
     }
     /// record corresponding syscall id
     pub fn record_syscall(&mut self, id: usize) {

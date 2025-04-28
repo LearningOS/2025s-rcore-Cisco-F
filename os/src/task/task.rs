@@ -167,6 +167,10 @@ impl TaskControlBlock {
     pub fn mmap(&mut self, start: usize, len: usize, port: usize) -> isize {
         self.memory_set.mmap(start, len, port)
     }
+    /// munmap pages
+    pub fn munmap(&mut self, start: usize, len: usize) -> isize {
+        self.memory_set.munmap(start, len)
+    }
 }
 
 #[derive(Copy, Clone, PartialEq)]

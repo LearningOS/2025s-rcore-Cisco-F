@@ -1,7 +1,7 @@
 //! Process management syscalls
 use core::slice;
 
-use crate::{config::CLOCK_FREQ, mm::translated_byte_buffer, task::{change_program_brk, current_user_token, exit_current_and_run_next, read_usize, suspend_current_and_run_next, task_info, write_usize}, timer::get_time};
+use crate::{config::CLOCK_FREQ, mm::translated_byte_buffer, task::{change_program_brk, current_user_token, exit_current_and_run_next, mmap, read_usize, suspend_current_and_run_next, task_info, write_usize}, timer::get_time};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -57,10 +57,10 @@ pub fn sys_trace(trace_request: usize, id: usize, data: usize) -> isize {
     result
 }
 
-// YOUR JOB: Implement mmap.
-pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
-    trace!("kernel: sys_mmap NOT IMPLEMENTED YET!");
-    -1
+/// alloc and mmap pages
+pub fn sys_mmap(start: usize, len: usize, port: usize) -> isize {
+    trace!("kernel: sys_mmap");
+    mmap(start, len, port)
 }
 
 // YOUR JOB: Implement munmap.

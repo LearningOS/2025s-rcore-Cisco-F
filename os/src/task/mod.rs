@@ -173,6 +173,11 @@ impl TaskManager {
         let inner = self.inner.exclusive_access();
         inner.tasks[inner.current_task].task_info(id)
     }
+    fn mmap(&self, start: usize, len: usize, port: usize) -> isize {
+        let mut inner = self.inner.exclusive_access();
+        let cur = inner.current_task;
+        inner.tasks[cur].mmap(start, len, port)
+    }
 }
 
 /// Run the first task in task list.
@@ -241,4 +246,9 @@ pub fn record_syscall(id: usize) {
 /// get syscall times of given id
 pub fn task_info(id: usize) -> usize {
     TASK_MANAGER.task_info(id)
+}
+
+/// alloc and mmap pages
+pub fn mmap(start: usize, len: usize, port: usize) -> isize {
+    TASK_MANAGER.mmap(start, len, port)
 }

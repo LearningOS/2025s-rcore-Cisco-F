@@ -163,6 +163,10 @@ impl TaskControlBlock {
     pub fn task_info(&self, id: usize) -> usize {
         self.syscall_times[id]
     }
+    /// alloc and mmap pages
+    pub fn mmap(&mut self, start: usize, len: usize, port: usize) -> isize {
+        self.memory_set.mmap(start, len, port)
+    }
 }
 
 #[derive(Copy, Clone, PartialEq)]

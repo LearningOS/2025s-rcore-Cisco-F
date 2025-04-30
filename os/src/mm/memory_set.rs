@@ -301,6 +301,81 @@ impl MemorySet {
         }
     }
 }
+
+impl MemorySet {
+    /// mmap for current task's memory set
+    pub fn mmap(&mut self, start: usize, len: usize, port: usize) -> isize {
+        let start_va = VirtAddr::from(start);
+        let end_va = VirtAddr::from(start + len);
+
+        if !start_va.aligned() {
+            debug!("start va isn't aligned!");
+            return -1;
+        }
+        
+        if port & !0x7 != 0 || port & 0x7 == 0 {
+            debug!("invalid attribute!");
+            return -1;
+        }
+        
+        let start_vpn = start_va.floor();
+        let end_vpn = end_va.ceil();
+        let page_table = &self.page_table;
+        for vpn in VPNRange::new(start_vpn, end_vpn) {
+            match page_table.translate(vpn) {
+                Some(pte) => {
+                    if pte.is_valid() {
+                        debug!("page to be mmaped already exists!");
+                        return -1;
+                    }
+                },
+                _ => {},
+            };
+        }
+
+        let mut permission = MapPermission::empty();
+        if port & 0x1 != 0 { permission.insert(MapPermission::R); }
+        if port & 0x2 != 0 { permission.insert(MapPermission::W); }
+        if port & 0x4 != 0 { permission.insert(MapPermission::X); }
+        permission.insert(MapPermission::U);
+        self.insert_framed_area(start_va, end_va, permission);
+
+        0
+    }
+
+    /// unmap for current task's memory set
+    pub fn munmap(&mut self, start: usize, len: usize) -> isize {
+        let start_va = VirtAddr::from(start);
+        let end_va = VirtAddr::from(start + len);
+
+        if !start_va.aligned() {
+            debug!("start va isn't aligned!");
+            return -1;
+        }
+
+        let start_vpn = start_va.floor();
+        let end_vpn = end_va.ceil();
+        let page_table = &mut self.page_table;
+        for vpn in VPNRange::new(start_vpn, end_vpn) {
+            match page_table.translate(vpn) {
+                Some(pte) => {
+                    if !pte.is_valid() {
+                        debug!("page to be munmaped is invalid!");
+                        return -1;
+                    }
+                },
+                _ => {
+                    debug!("page to be munmaped doesn't exist!");
+                    return -1;
+                },
+            }
+            page_table.unmap(vpn);
+        }
+
+        0
+    }
+}
+
 /// map area structure, controls a contiguous piece of virtual memory
 pub struct MapArea {
     vpn_range: VPNRange,

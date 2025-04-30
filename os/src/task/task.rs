@@ -94,6 +94,12 @@ impl TaskControlBlockInner {
             self.fd_table.len() - 1
         }
     }
+    pub fn mmap(&mut self, start: usize, len: usize, port: usize) -> isize {
+        self.memory_set.mmap(start, len, port)
+    }
+    pub fn munmap(&mut self, start: usize, len: usize) -> isize {
+        self.memory_set.munmap(start, len)
+    }
 }
 
 impl TaskControlBlock {

@@ -15,6 +15,10 @@ pub trait File: Send + Sync {
     fn read(&self, buf: UserBuffer) -> usize;
     /// write to the file from buf, return the number of bytes written
     fn write(&self, buf: UserBuffer) -> usize;
+    /// get file status, return (inode_id, StatMode, nlink)
+    fn fstat(&self) -> (u64, StatMode, u32) {
+        panic!("fstat not implemented for this struct!");
+    }
 }
 
 /// The stat of a inode

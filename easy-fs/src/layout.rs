@@ -102,6 +102,12 @@ impl DiskInode {
     pub fn is_dir(&self) -> bool {
         self.type_ == DiskInodeType::Directory
     }
+    pub fn get_type(&self) -> u32 {
+        match self.type_ {
+            DiskInodeType::Directory => 0o040000,
+            DiskInodeType::File => 0o100000,
+        }
+    }
     /// Whether this inode is a file
     #[allow(unused)]
     pub fn is_file(&self) -> bool {

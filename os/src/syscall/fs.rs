@@ -1,6 +1,6 @@
 //! File and filesystem-related syscalls
 use crate::fs::{open_file, OpenFlags, Stat};
-use crate::mm::{translated_byte_buffer, translated_str, UserBuffer};
+use crate::mm::{translated_byte_buffer, translated_str, PhysAddr, UserBuffer, VirtAddr};
 use crate::task::{current_task, current_user_token};
 
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
@@ -75,13 +75,48 @@ pub fn sys_close(fd: usize) -> isize {
     0
 }
 
-/// YOUR JOB: Implement fstat.
-pub fn sys_fstat(_fd: usize, _st: *mut Stat) -> isize {
+pub fn sys_fstat(fd: usize, st: *mut Stat) -> isize {
     trace!(
-        "kernel:pid[{}] sys_fstat NOT IMPLEMENTED",
+        "kernel:pid[{}] sys_fstat",
         current_task().unwrap().pid.0
     );
-    -1
+
+    let task = current_task().unwrap();
+    let inner = task.inner_exclusive_access();
+    if let Some(inode) = &inner.fd_table[fd] {
+        let stat = inode.fstat();
+
+        let va = VirtAddr::from(st as usize);
+        let vpn = va.floor();
+        let offset = va.page_offset();
+        let ppn = inner
+            .memory_set
+            .translate(vpn)
+            .map(|entry| entry.ppn());
+        let ppn = match ppn {
+            Some(ppn) => PhysAddr::from((ppn.0 << 12) | offset),
+            _ => return -1,
+        };
+
+        drop(inner);
+
+        let pa = ppn.0 as *mut Stat;
+        unsafe {
+            (*pa).ino = stat.0;
+            (*pa).mode = stat.1;
+            (*pa).nlink = stat.2;
+        }
+        0
+        // let token = current_user_token();
+        // let mut buffer = translated_byte_buffer(token, st as *const u8, core::mem::size_of::<Stat>());
+        // let src = unsafe {
+        //     core::slice::from_raw_parts(&stat as *const _ as *const u8, core::mem::size_of::<Stat>())
+        // };
+
+        // buffer[0].copy_from_slice(src);
+    } else {
+        -1
+    }
 }
 
 /// YOUR JOB: Implement linkat.

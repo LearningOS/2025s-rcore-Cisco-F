@@ -242,4 +242,27 @@ impl Inode {
 
         0
     }
+    /// remove a hard link
+    pub fn unlink(&self, name: &str) -> isize {
+        self.modify_disk_inode(|root| {
+            let file_count = (root.size as usize) / DIRENT_SZ;
+            for i in 0..file_count {
+                let mut dirent = DirEntry::empty();
+                if root.read_at(
+                    i * DIRENT_SZ,
+                    dirent.as_bytes_mut(),
+                    &self.block_device
+                ) != DIRENT_SZ {
+                    continue;
+                }
+
+                if dirent.name() == name {
+                    let dirent = DirEntry::empty();
+                    root.write_at(i * DIRENT_SZ, dirent.as_bytes(), &self.block_device);
+                    return 0;
+                }
+            }
+            -1
+        })
+    }
 }

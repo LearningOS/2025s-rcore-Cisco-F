@@ -194,3 +194,18 @@ pub fn link(old_name: *const u8, new_name: *const u8) -> isize {
         ROOT_INODE.link(old_name, new_name)
     }
 }
+
+/// remove a hard link
+pub fn unlink(name: *const u8) -> isize {
+    let mut len = 0;
+    unsafe {
+        let mut ptr = name;
+        while (*ptr) as char != '\0' {
+            len += 1;
+            ptr = ptr.add(1);
+        }
+        let name = core::str::from_raw_parts(name, len);
+
+        ROOT_INODE.unlink(name)
+    }
+}

@@ -5,6 +5,7 @@ use super::{
 use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use log::error;
 use spin::{Mutex, MutexGuard};
 /// Virtual filesystem layer over easy-fs
 pub struct Inode {
@@ -212,5 +213,33 @@ impl Inode {
             }
             cnt
         })
+    }
+    /// create a hard link from old_name to new_name
+    pub fn link(&self, old_name: &str, new_name: &str) -> isize {
+        let mut fs = self.fs.lock();
+        let old_inode_id = self.read_disk_inode(|inode| {
+            self.find_inode_id(old_name, inode)
+        });
+        if old_inode_id.is_none() {
+            error!("can't find disk_inode of name {}!", old_name);
+            return -1;
+        }
+        let old_inode_id = old_inode_id.unwrap();
+
+        let (new_block_id, new_block_offset) = fs.get_disk_inode_pos(old_inode_id);
+        get_block_cache(new_block_id as usize, Arc::clone(&self.block_device))
+            .lock()
+            .modify(new_block_offset, |new_inode: &mut DiskInode| {
+                new_inode.initialize(DiskInodeType::File);
+            });
+        self.modify_disk_inode(|root| {
+            let file_count = (root.size as usize) / DIRENT_SZ;
+            let new_size = (file_count + 1) * DIRENT_SZ;
+            self.increase_size(new_size as u32, root, &mut fs);
+            let dirent = DirEntry::new(new_name, old_inode_id);
+            root.write_at(file_count * DIRENT_SZ, dirent.as_bytes(), &self.block_device);
+        });
+
+        0
     }
 }

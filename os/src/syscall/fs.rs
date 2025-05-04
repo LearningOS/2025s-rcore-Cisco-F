@@ -1,7 +1,7 @@
 //! File and filesystem-related syscalls
-use crate::fs::{open_file, OpenFlags, Stat};
-use crate::mm::{translated_byte_buffer, translated_str, PhysAddr, UserBuffer, VirtAddr};
-use crate::task::{current_task, current_user_token};
+use crate::fs::{open_file, OpenFlags, Stat, link};
+use crate::mm::{translated_byte_buffer, translated_str, UserBuffer, VirtAddr};
+use crate::task::{current_task, current_user_token, va_to_pa};
 
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     trace!("kernel:pid[{}] sys_write", current_task().unwrap().pid.0);
@@ -85,47 +85,46 @@ pub fn sys_fstat(fd: usize, st: *mut Stat) -> isize {
     let inner = task.inner_exclusive_access();
     if let Some(inode) = &inner.fd_table[fd] {
         let stat = inode.fstat();
-
-        let va = VirtAddr::from(st as usize);
-        let vpn = va.floor();
-        let offset = va.page_offset();
-        let ppn = inner
-            .memory_set
-            .translate(vpn)
-            .map(|entry| entry.ppn());
-        let ppn = match ppn {
-            Some(ppn) => PhysAddr::from((ppn.0 << 12) | offset),
-            _ => return -1,
-        };
-
         drop(inner);
 
-        let pa = ppn.0 as *mut Stat;
-        unsafe {
-            (*pa).ino = stat.0;
-            (*pa).mode = stat.1;
-            (*pa).nlink = stat.2;
+        let va = VirtAddr::from(st as usize);
+        let pa = va_to_pa(va);
+        match pa {
+            Some(pa) => {
+                let pa = pa.0 as *mut Stat;
+                unsafe {
+                    (*pa).ino = stat.0;
+                    (*pa).mode = stat.1;
+                    (*pa).nlink = stat.2;
+                }
+                0
+            },
+            None => {
+                error!("sys_fstat, convert va to pa failed!");
+                -1
+            }
         }
-        0
-        // let token = current_user_token();
-        // let mut buffer = translated_byte_buffer(token, st as *const u8, core::mem::size_of::<Stat>());
-        // let src = unsafe {
-        //     core::slice::from_raw_parts(&stat as *const _ as *const u8, core::mem::size_of::<Stat>())
-        // };
-
-        // buffer[0].copy_from_slice(src);
     } else {
         -1
     }
 }
 
 /// YOUR JOB: Implement linkat.
-pub fn sys_linkat(_old_name: *const u8, _new_name: *const u8) -> isize {
+pub fn sys_linkat(old_name: *const u8, new_name: *const u8) -> isize {
     trace!(
         "kernel:pid[{}] sys_linkat NOT IMPLEMENTED",
         current_task().unwrap().pid.0
     );
-    -1
+    let old_name = va_to_pa(VirtAddr::from(old_name as usize));
+    let new_name = va_to_pa(VirtAddr::from(new_name as usize));
+    if let (Some(old_name), Some(new_name)) = (old_name, new_name) {
+        let old_name = old_name.0 as *const u8;
+        let new_name = new_name.0 as *const u8;
+        link(old_name, new_name)
+    } else {
+        error!("kernel: sys_linkat failed!");
+        -1
+    }
 }
 
 /// YOUR JOB: Implement unlinkat.

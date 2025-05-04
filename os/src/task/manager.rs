@@ -1,5 +1,6 @@
 //!Implementation of [`TaskManager`]
-use super::TaskControlBlock;
+use super::{current_task, TaskControlBlock};
+use crate::mm::{PhysAddr, VirtAddr};
 use crate::sync::UPSafeCell;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
@@ -43,4 +44,20 @@ pub fn add_task(task: Arc<TaskControlBlock>) {
 pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
     //trace!("kernel: TaskManager::fetch_task");
     TASK_MANAGER.exclusive_access().fetch()
+}
+
+/// convert a va to pa
+pub fn va_to_pa(va: VirtAddr) -> Option<PhysAddr> {
+    let task = current_task().unwrap();
+    let inner = task.inner_exclusive_access();
+
+    let vpn = va.floor();
+    let offset = va.page_offset();
+    let ppn = inner
+        .memory_set
+        .translate(vpn)
+        .unwrap()
+        .ppn();
+    
+    Some(PhysAddr::from((ppn.0 << 12) | offset))
 }

@@ -36,7 +36,6 @@ impl Semaphore {
         inner.count += 1;
         if inner.count <= 0 {
             if let Some(task) = inner.wait_queue.pop_front() {
-                task.inner_exclusive_access().require();
                 wakeup_task(task);
             }
         }
@@ -51,9 +50,6 @@ impl Semaphore {
             inner.wait_queue.push_back(current_task().unwrap());
             drop(inner);
             block_current_and_run_next();
-        } else {
-            let task = current_task().unwrap();
-            task.inner_exclusive_access().require();
         }
     }
 }

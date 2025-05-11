@@ -5,6 +5,7 @@ use super::{kstack_alloc, KernelStack, ProcessControlBlock, TaskContext};
 use crate::trap::TrapContext;
 use crate::{mm::PhysPageNum, sync::UPSafeCell};
 use alloc::sync::{Arc, Weak};
+use alloc::vec::Vec;
 use core::cell::RefMut;
 
 /// Task control block structure
@@ -41,6 +42,10 @@ pub struct TaskControlBlockInner {
     pub task_status: TaskStatus,
     /// It is set when active exit or execution error occurs
     pub exit_code: Option<i32>,
+    /// resourses already allcated. if allocated[i].0 == true, it's a mutex resourse
+    pub allocated: Vec<(usize, bool)>,
+    /// resourse need by current thread. if need.0 == true, it's a mutex resourse
+    pub need: Option<(usize, bool)>,
 }
 
 impl TaskControlBlockInner {
@@ -51,6 +56,14 @@ impl TaskControlBlockInner {
     #[allow(unused)]
     fn get_status(&self) -> TaskStatus {
         self.task_status
+    }
+
+    pub fn require(&mut self) {
+        // let resourse = self.need.take();
+        // if let Some(r) = resourse {
+        //     self.allocated.push(r);
+        // }
+        self.allocated.push(self.need.take().unwrap());
     }
 }
 
@@ -75,6 +88,8 @@ impl TaskControlBlock {
                     task_cx: TaskContext::goto_trap_return(kstack_top),
                     task_status: TaskStatus::Ready,
                     exit_code: None,
+                    allocated: Vec::new(),
+                    need: None,
                 })
             },
         }

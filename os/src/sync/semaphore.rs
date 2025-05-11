@@ -52,8 +52,12 @@ impl Semaphore {
             drop(inner);
             block_current_and_run_next();
         } else {
-            let task = current_task().unwrap();
-            task.inner_exclusive_access().require();
+            if let Some(task) = current_task() {
+                // let t_inner = task.inner_exclusive_access();
+                // debug!("tid{} require res {}", t_inner.res.unwrap().tid, t_inner.need.unwrap()0);
+                // t_inner.require();
+                task.inner_exclusive_access().require();
+            }
         }
     }
 }

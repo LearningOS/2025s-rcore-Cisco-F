@@ -63,6 +63,7 @@ impl TaskControlBlockInner {
         // if let Some(r) = resourse {
         //     self.allocated.push(r);
         // }
+        debug!("require res {}, id {}", self.need.unwrap().0, self.need.unwrap().1);
         self.allocated.push(self.need.take().unwrap());
     }
 }

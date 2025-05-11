@@ -110,7 +110,7 @@ impl ProcessControlBlockInner {
         }
 
         // set work matrix
-        let mut work = vec![0; len];
+        let mut work = vec![0u32; len];
         for (id, resourse) in self.mutex_list.iter().enumerate() {
             if let Some(mutex) = resourse {
                 if !mutex.is_locked() {
@@ -122,7 +122,7 @@ impl ProcessControlBlockInner {
             if let Some(semaphore) = resourse {
                 let cnt = semaphore.inner.exclusive_access().count;
                 if cnt > 0 {
-                    work[calculate_pos(id, false)] += cnt;
+                    work[calculate_pos(id, false)] += cnt as u32;
                 }
             }
         }

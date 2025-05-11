@@ -30,19 +30,6 @@ fn set_need(id: usize, flag: bool) {
 }
 
 fn release(id: usize, flag: bool) {
-    debug!(
-        "kernel:pid[{}] tid[{}] releasing res {}, flag is {}",
-        current_task().unwrap().process.upgrade().unwrap().getpid(),
-        current_task()
-            .unwrap()
-            .inner_exclusive_access()
-            .res
-            .as_ref()
-            .unwrap()
-            .tid,
-        id,
-        flag
-    );
     let task = current_task().unwrap();
     let mut inner = task.inner_exclusive_access();
     if let Some(pos) = inner
@@ -50,7 +37,7 @@ fn release(id: usize, flag: bool) {
         .iter()
         .position(|resourse| resourse.0 == id && resourse.1 == flag)
     {
-        inner.allocated.swap_remove(pos);
+        inner.allocated.remove(pos);
     }
 }
 
@@ -187,7 +174,6 @@ pub fn sys_semaphore_up(sem_id: usize) -> isize {
     let process_inner = process.inner_exclusive_access();
     let sem = Arc::clone(process_inner.semaphore_list[sem_id].as_ref().unwrap());
     drop(process_inner);
-    release(sem_id, false);
     sem.up();
     0
 }
